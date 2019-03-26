@@ -11,6 +11,7 @@ box float_to_box(float *f)
     b.w = f[2];
     b.h = f[3];
     return b;
+    
 }
 
 dbox derivative(box a, box b)
