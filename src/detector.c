@@ -1495,5 +1495,91 @@ void run_detector(int argc, char **argv)
         free_list_contents_kvp(options);
         free_list(options);
     }
+
+void phone_detector(int argc, char **argv)
+{   
+    char[20] datacfg = "/home/ubuntu/Documents/darknet.data"
+    char[20] cfg = "/home/ubuntu/Documents/darknet-yolov3.cfg"
+    char[20] weights = "/home/ubuntu/Documents/Pesos/darknet-yolov3_celular.weights"
+    char[20] filename = "fatigue_detection"
+    int dont_show = find_arg(argc, argv, "-dont_show");
+    int show = find_arg(argc, argv, "-show");
+    int calc_map = find_arg(argc, argv, "-map");
+    check_mistakes = find_arg(argc, argv, "-check_mistakes");
+    int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
+    int json_port = find_int_arg(argc, argv, "-json_port", -1);
+    char *out_filename = find_char_arg(argc, argv, "-out_filename", 0);
+    char *outfile = find_char_arg(argc, argv, "-out", 0);
+    char *prefix = find_char_arg(argc, argv, "-prefix", 0);
+    float thresh = find_float_arg(argc, argv, "-thresh", .25);    // 0.24
+    float iou_thresh = find_float_arg(argc, argv, "-iou_thresh", .5);    // 0.5 for mAP
+    float hier_thresh = find_float_arg(argc, argv, "-hier", .5);
+    int cam_index = find_int_arg(argc, argv, "-c", 0);
+    int frame_skip = find_int_arg(argc, argv, "-s", 0);
+    int num_of_clusters = find_int_arg(argc, argv, "-num_of_clusters", 5);
+    int width = find_int_arg(argc, argv, "-width", -1);
+    int height = find_int_arg(argc, argv, "-height", -1);
+    // extended output in test mode (output of rect bound coords)
+    // and for recall mode (extended output table-like format with results for best_class fit)
+    int ext_output = find_arg(argc, argv, "-ext_output");
+    int save_labels = find_arg(argc, argv, "-save_labels");
+    if (argc < 4) {
+        fprintf(stderr, "usage: %s %s [train/test/valid/demo/map] [data] [cfg] [weights (optional)]\n", argv[0], argv[1]);
+        return;
+    }
+    char *gpu_list = find_char_arg(argc, argv, "-gpus", 0);
+    int *gpus = 0;
+    int gpu = 0;
+    int ngpus = 0;
+    if (gpu_list) {
+        printf("%s\n", gpu_list);
+        int len = strlen(gpu_list);
+        ngpus = 1;
+        int i;
+        for (i = 0; i < len; ++i) {
+            if (gpu_list[i] == ',') ++ngpus;
+        }
+        gpus = (int*)calloc(ngpus, sizeof(int));
+        for (i = 0; i < ngpus; ++i) {
+            gpus[i] = atoi(gpu_list);
+            gpu_list = strchr(gpu_list, ',') + 1;
+        }
+    }
+    else {
+        gpu = gpu_index;
+        gpus = &gpu;
+        ngpus = 1;
+    }
+
+    int clear = find_arg(argc, argv, "-clear");
+
+    char *datacfg = argv[3];
+    char *cfg = argv[4];
+    char *weights = (argc > 5) ? argv[5] : 0;
+    if (weights)
+        if (strlen(weights) > 0)
+            if (weights[strlen(weights) - 1] == 0x0d) weights[strlen(weights) - 1] = 0;
+    char *filename = (argc > 6) ? argv[6] : 0;
+    if (0 == strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile);
+    else if (0 == strcmp(argv[2], "train")) train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, mjpeg_port);
+    else if (0 == strcmp(argv[2], "valid")) validate_detector(datacfg, cfg, weights, outfile);
+    else if (0 == strcmp(argv[2], "recall")) validate_detector_recall(datacfg, cfg, weights);
+    else if (0 == strcmp(argv[2], "map")) validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, NULL);
+    else if (0 == strcmp(argv[2], "calc_anchors")) calc_anchors(datacfg, num_of_clusters, width, height, show);
+    else if (0 == strcmp(argv[2], "demo")) {
+        list *options = read_data_cfg(datacfg);
+        int classes = option_find_int(options, "classes", 20);
+        char *name_list = option_find_str(options, "names", "data/names.list");
+        char **names = get_labels(name_list);
+        if (filename)
+            if (strlen(filename) > 0)
+                if (filename[strlen(filename) - 1] == 0x0d) filename[strlen(filename) - 1] = 0;
+        demo(cfg, weights, thresh, hier_thresh, cam_index, filename, names, classes, frame_skip, prefix, out_filename,
+            mjpeg_port, json_port, dont_show, ext_output);
+
+        free_list_contents_kvp(options);
+        free_list(options);
+    }
+
     else printf(" There isn't such command: %s", argv[2]);
 }
